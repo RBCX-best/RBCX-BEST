@@ -1,101 +1,53 @@
+#include "RBCX.h"
 #include <Arduino.h>
-#include "robotka.h"
-
-//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
-// Nesmím předělávat --- já NZ
-
-
-//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-typedef struct __attribute__((packed)) {
-    uint8_t sensor_id;
-    uint16_t distance; // mm
-} SensorData;
-
-SensorData received_data;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#include <string>
+
+void clear() {
+    rb::Manager::get().oled().fill(rb::Oled::Black);
+    rb::Manager::get().oled().updateScreen();
+}
+
+void waitToNextTest() {
+    delay(3000);
+    clear();
+}
 
 void setup() {
-    rkConfig cfg;
-    rkSetup(cfg);
-    printf("Robotka prijimac UART started!\n");
+    printf("RB3204-RBCX\n");
+
+    delay(500);
+
+    printf("Init manager\n");
+    auto& man = rb::Manager::get();
+    man.install();
+
+    man.leds().red(true);
+
+        auto& mpu = rb::Manager::get().mpu();
+
+    mpu.init();
+    mpu.sendStart();
+
+    // 1. Počkáme chvíli, než začnou chodit první stabilní data ze senzoru
+    delay(1000);
+
+    // 2. Vymažeme stará kalibrační data (nastaví offset na 0)
+    mpu.clearCalibrationData();
+    delay(100); // Necháme do knihovny natéct čistá data (bez offsetu)
+
+    // 3. Zkalibrujeme! Uloží aktuální odchylku (chybu) jako offset, který se bude nově odečítat.
+    // DŮLEŽITÉ: ROBOT V TUTO CHVÍLI MUSÍ BÝT V ABSOLUTNÍM KLIDU!
+    mpu.setCalibrationData();
     
-    // Inicializace UART komunikace
-    rkUartInit();
+    // 4. Vynulujeme celkový úhel osy Z, aby nám hezky začínal od nuly
+    mpu.resetAngleZ();
 
-    printf("Cekam na data ze senzoru...\n");
-}
-
-void loop() {
-    // Zkusíme přijmout data
-    if (rkUartReceive(&received_data, sizeof(received_data))) {
-        // Pokud jsme úspěšně přijali data, vypíšeme je
-        printf("Senzor ID: %d, Vzdalenost: %d mm\n", received_data.sensor_id, received_data.distance);
-        if(received_data.sensor_id == 3){
-          printf("-------------------------------------------------------- \n");
-          std::cout<<" "<<std::endl;
-        }
+    while (true) {
+        printf("MPU - angle: X: %2.2f Y: %2.2f Z: %2.2f\n", mpu.getAngleX(), mpu.getAngleY(), mpu.getAngleZ());
+        delay(100);
     }
 
-    // Malá pauza, abychom nezahltili procesor
-    delay(10); 
+
 }
 
+void loop() {}
