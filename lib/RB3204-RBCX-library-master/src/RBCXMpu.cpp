@@ -26,7 +26,8 @@ static constexpr int CALIB_OFFSET_NB_MES = 1;
 namespace rb {
 
 Mpu::Mpu() {
-    m_lastTicks = xTaskGetTickCount();
+    m_lastMicros = esp_timer_get_time();
+    m_lastGyroZ = 0.0f;
 }
 
 Mpu::~Mpu() {}
@@ -119,9 +120,9 @@ void Mpu::calculateAngle() {
                   + m_mpuMotion.accel.y * m_mpuMotion.accel.y))
         * RAD_2_DEG; // [- 90°,+ 90°]
     
-    const TickType_t curTicks = xTaskGetTickCount();
-    const float elapsedSeconds = float((curTicks  - m_lastTicks) * portTICK_RATE_MS) / 1000.f;
-    m_lastTicks = curTicks;
+    const int64_t curMicros = esp_timer_get_time();
+    const float elapsedSeconds = float(curMicros - m_lastMicros) / 1000000.f;
+    m_lastMicros = curMicros;
 
     // Correctly wrap X and Y angles (special thanks to Edgar Bonet!)
     // https://github.com/gabriel-milan/TinyMPU6050/issues/6
@@ -140,8 +141,8 @@ void Mpu::calculateAngle() {
             + m_mpuMotion.angleAcc.y,
         90);
 
-    m_mpuMotion.angle.z
-        += m_mpuMotion.gyro.z * elapsedSeconds; // not wrapped (to do???)
+    m_mpuMotion.angle.z += (m_mpuMotion.gyro.z + m_lastGyroZ) / 2.0f * elapsedSeconds;
+    m_lastGyroZ = m_mpuMotion.gyro.z;
 }
 
 void Mpu::resetAngleZ() {

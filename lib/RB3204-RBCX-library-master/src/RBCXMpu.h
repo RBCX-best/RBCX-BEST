@@ -1,6 +1,7 @@
 #pragma once
 
 #include <freertos/FreeRTOS.h>
+#include <esp_timer.h>
 
 #include "rbcx.pb.h"
 namespace rb {
@@ -167,7 +168,8 @@ private:
     MpuMotion9 m_mpuMotion;
     MpuMotion6 m_mpuMotionOffset;
 
-    TickType_t m_lastTicks;
+    int64_t m_lastMicros;
+    float m_lastGyroZ;
 
     uint8_t m_compressCoef;
 
