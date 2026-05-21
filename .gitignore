@@ -6,3 +6,4 @@
 data
 test
 include
+src/main.cpp
